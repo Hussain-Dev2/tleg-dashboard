@@ -66,7 +66,17 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   
   // Set up webhook
-  const webhookUrl = process.env.WEBHOOK_URL || `https://${process.env.RAILWAY_STATIC_URL}/telegram/webhook`;
+  let webhookUrl = process.env.WEBHOOK_URL;
+  if (!webhookUrl) {
+    // For Railway deployment
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+      webhookUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/telegram/webhook`;
+    } else {
+      console.warn('WEBHOOK_URL or RAILWAY_PUBLIC_DOMAIN not set. Set WEBHOOK_URL in your environment.');
+      return;
+    }
+  }
+  
   bot.setWebHook(webhookUrl)
     .then(() => console.log(`Webhook set to: ${webhookUrl}`))
     .catch(err => console.error('Error setting webhook:', err));
