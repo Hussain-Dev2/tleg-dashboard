@@ -1,6 +1,6 @@
 
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+const API = process.env.REACT_APP_API_URL || 'tlygrmservesbot-production.up.railway.app';
 export async function fetchOrders(token) {
   return fetch(`${API}/orders`, {
     headers: { Authorization: `Bearer ${token}` }
