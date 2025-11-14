@@ -13,7 +13,7 @@ if (!botToken) {
   console.error("Please provide BOT_TOKEN in .env file");
   process.exit(1);
 }
-const bot = new TelegramBot(botToken, { polling: true });
+const bot = new TelegramBot(botToken, { polling: false });
 
 // Middleware
 app.use(bodyParser.json());
@@ -23,6 +23,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Routes
 app.get('/api/status', (req, res) => {
   res.json({ status: 'Bot is running', timestamp: new Date() });
+});
+
+// Telegram webhook endpoint
+app.post('/telegram/webhook', (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
 // Example: HTTP endpoint to send message via bot
@@ -58,4 +64,10 @@ app.get('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  
+  // Set up webhook
+  const webhookUrl = process.env.WEBHOOK_URL || `https://${process.env.RAILWAY_STATIC_URL}/telegram/webhook`;
+  bot.setWebHook(webhookUrl)
+    .then(() => console.log(`Webhook set to: ${webhookUrl}`))
+    .catch(err => console.error('Error setting webhook:', err));
 });
