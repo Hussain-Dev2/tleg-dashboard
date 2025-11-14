@@ -1,40 +1,61 @@
-import express from "express";
-import path from "path";
-import { Telegraf } from "telegraf";
-import dotenv from "dotenv";
-
-dotenv.config();
+require('dotenv').config();
+const express = require('express');
+const bodyParser = require('body-parser');
+const path = require('path');
+const TelegramBot = require('node-telegram-bot-api');
 
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-// --- Telegram Bot Setup ---
-const bot = new Telegraf(process.env.BOT_TOKEN);
-bot.start(ctx => ctx.reply("Welcome! Bot is running on Railway 🚀"));
-bot.on("text", ctx => ctx.reply(`You said: ${ctx.message.text}`));
+// Telegram Bot
+const botToken = process.env.BOT_TOKEN;
+if (!botToken) {
+  console.error("Please provide BOT_TOKEN in .env file");
+  process.exit(1);
+}
+const bot = new TelegramBot(botToken, { polling: true });
 
-// Webhook callback
-app.use(bot.webhookCallback("/bot"));
+// Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
 
-// --- Serve Dashboard ---
-app.use(express.static(path.join(process.cwd(), "public")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(process.cwd(), "public", "index.html"));
+// Routes
+app.get('/api/status', (req, res) => {
+  res.json({ status: 'Bot is running', timestamp: new Date() });
 });
 
-// --- Start Server ---
-const PORT = process.env.PORT || 3000;
-const WEBHOOK_URL = process.env.WEBHOOK_URL;
-
-app.listen(PORT, async () => {
-  console.log(`Server listening on port ${PORT}`);
-
-  if (WEBHOOK_URL) {
-    const fullWebhook = `${WEBHOOK_URL}/bot`;
-    try {
-      await bot.telegram.setWebhook(fullWebhook);
-      console.log("Webhook set:", fullWebhook);
-    } catch (err) {
-      console.error("Webhook Error:", err);
-    }
+// Example: HTTP endpoint to send message via bot
+app.post('/api/send', async (req, res) => {
+  const { chatId, message } = req.body;
+  if (!chatId || !message) {
+    return res.status(400).json({ error: "chatId and message are required" });
   }
+  try {
+    await bot.sendMessage(chatId, message);
+    res.json({ status: 'Message sent', chatId, message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Telegram bot commands
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, `Hello ${msg.from.first_name}, welcome to Service Bot!`);
+});
+
+bot.on('message', (msg) => {
+  if (msg.text && !msg.text.startsWith('/')) {
+    bot.sendMessage(msg.chat.id, `You said: ${msg.text}`);
+  }
+});
+
+// Serve frontend
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
